@@ -9,20 +9,24 @@
  */
 #pragma once
 
-#include <bits/extc++.h> /** keep-include */
-// To use most bits rather than just the lowest ones:
-struct chash { // large odd number for C
-	const uint64_t C = ll(4e18 * acos(0)) | 71;
-	ll operator()(ll x) const { return __builtin_bswap64(x*C); }
+#include <bits/extc++.h>
+struct splitmix64_hash {
+  static uint64_t splitmix64(uint64_t x) {
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111eb;
+    return x ^ (x >> 31);
+  }
+  size_t operator()(uint64_t x) const {
+    static const uint64_t FIXED_RANDOM = std::chrono::steady_clock::now().time_since_epoch().count();
+    return splitmix64(x + FIXED_RANDOM);
+  }
+  size_t operator()(pair<uint64_t, uint64_t> x) const {
+    static const uint64_t FIXED_RANDOM0 = std::chrono::steady_clock::now().time_since_epoch().count();
+    static const uint64_t FIXED_RANDOM1 = std::chrono::steady_clock::now().time_since_epoch().count();
+    return splitmix64(x.first + FIXED_RANDOM0) ^ splitmix64(x.second + FIXED_RANDOM1);
+  }
 };
-__gnu_pbds::gp_hash_table<ll,int,chash> h({},{},{},{},{1<<16});
-
-/** For CodeForces, or other places where hacking might be a problem:
-
-const int RANDOM = chrono::high_resolution_clock::now().time_since_epoch().count();
-struct chash { // To use most bits rather than just the lowest ones:
-	const uint64_t C = ll(4e18 * acos(0)) | 71; // large odd number
-	ll operator()(ll x) const { return __builtin_bswap64((x^RANDOM)*C); }
-};
-__gnu_pbds::gp_hash_table<ll, int, chash> h({},{},{},{}, {1 << 16});
-*/
+template <typename K, typename V, typename Hash = splitmix64_hash>
+using hash_map = __gnu_pbds::gp_hash_table<K, V, Hash>;
+template <typename K, typename Hash = splitmix64_hash>
+using hash_set = hash_map<K, __gnu_pbds::null_type, Hash>;
