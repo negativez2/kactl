@@ -1,102 +1,130 @@
 /**
  * Author: Simon Lindholm
  * Date: 2016-07-25
- * Source: https://github.com/ngthanhtrung23/ACM_Notebook_new/blob/master/DataStructure/LinkCut.h
- * Description: Represents a forest of unrooted trees. You can add and remove
- * edges (as long as the result is still a forest), and check whether
- * two nodes are in the same tree.
+ * Description: Timmy
  * Time: All operations take amortized O(\log N).
  * Status: Stress-tested a bit for N <= 20
  */
 #pragma once
 
-struct Node { // Splay tree. Root's pp contains tree's parent.
-	Node *p = 0, *pp = 0, *c[2];
-	bool flip = 0;
-	Node() { c[0] = c[1] = 0; fix(); }
-	void fix() {
-		if (c[0]) c[0]->p = this;
-		if (c[1]) c[1]->p = this;
-		// (+ update sum of subtree elements etc. if wanted)
-	}
-	void pushFlip() {
-		if (!flip) return;
-		flip = 0; swap(c[0], c[1]);
-		if (c[0]) c[0]->flip ^= 1;
-		if (c[1]) c[1]->flip ^= 1;
-	}
-	int up() { return p ? p->c[1] == this : -1; }
-	void rot(int i, int b) {
-		int h = i ^ b;
-		Node *x = c[i], *y = b == 2 ? x : x->c[h], *z = b ? y : x;
-		if ((y->p = p)) p->c[up()] = y;
-		c[i] = z->c[i ^ 1];
-		if (b < 2) {
-			x->c[h] = y->c[h ^ 1];
-			z->c[h ^ 1] = b ? x : this;
+const int N=150010;
+int n,m,S,T,p[N],r[N],l[N],pp[N],f[N],t[N],val[N],id[N],kq=INT_MAX;
+struct oo {int u,v;}  q[N];
+struct tv {int u,v,c;};
+vector<tv> A,B;
+bool cmp(tv u,tv v) {return u.c<v.c;}
+void upl(int x,int y) {if(x!=y) l[x]=y,p[y]=x;}
+void upr(int x,int y) {if(x!=y) r[x]=y,p[y]=x;}
+void disl(int x) {if(l[x]) p[l[x]]=0,pp[l[x]]=x,l[x]=0;}
+void disr(int x) {if(r[x]) p[r[x]]=0,pp[r[x]]=x,r[x]=0;}
+int root(int x) {return id[x]<0?x:id[x]=root(id[x]);}
+void unions(int u,int v){
+	if((u=root(u))==(v=root(v))) return;
+	if(id[u]>id[v]) swap(u,v);
+	id[u]+=id[v];
+	id[v]=u;
+}
+void up(int x){
+	int ma=max({val[t[l[x]]],val[t[r[x]]],val[x]});
+	if(val[x]==ma) t[x]=x;
+	else if(val[t[l[x]]]==ma) t[x]=t[l[x]];
+	else t[x]=t[r[x]];
+}
+void update(int x){
+	int y=p[x];int z=p[y];
+	if(l[y]==x) upl(y,r[x]),upr(x,y);
+	else upr(y,l[x]),upl(x,y);
+	pp[x]=pp[y];pp[y]=0;
+	if(l[z]==y) upl(z,x);
+	else upr(z,x);
+	up(y);up(x);
+}
+int st[N],top;
+void tran(int x){
+	if(!f[x]) return;
+	int L=l[x],R=r[x];
+	f[L]^=1;swap(l[L],r[L]);
+	f[R]^=1;swap(l[R],r[R]);
+	f[x]=0;
+}
+void Splay(int x){
+	int _x=x;
+	top=0;st[++top]=_x;
+	while(p[_x]) up(_x),st[++top]=_x=p[_x];
+	up(_x);
+	while(top) tran(st[top--]);
+	for(;;){
+		int y=p[x];int z=p[y];
+		if(y==0) return;
+		if(z!=0){
+			if((l[z]==y)==(l[y]==x)) update(y);
+			else update(x);
 		}
-		y->c[i ^ 1] = b ? this : x;
-		fix(); x->fix(); y->fix();
-		if (p) p->fix();
-		swap(pp, y->pp);
+		update(x);
 	}
-	void splay() { /// Splay this up to the root. Always finishes without flip set.
-		for (pushFlip(); p; ) {
-			if (p->p) p->p->pushFlip();
-			p->pushFlip(); pushFlip();
-			int c1 = up(), c2 = p->up();
-			if (c2 == -1) p->rot(c1, 2);
-			else p->p->rot(c2, c1 != c2);
-		}
+}
+void access(int x){
+	Splay(x);
+	disr(x);
+	int z=x;
+	while(pp[x]){
+		int y=pp[x];
+		Splay(y);
+		disr(y);
+		upr(y,x);pp[x]=0;
+		x=y;
 	}
-	Node* first() { /// Return the min element of the subtree rooted at this, splayed to the top.
-		pushFlip();
-		return c[0] ? c[0]->first() : (splay(), this);
+	Splay(z);
+}
+void makeroot(int x){
+	access(x);
+	swap(l[x],r[x]);
+	f[x]^=1;
+}
+void link(int x,int y){
+	unions(x,y);
+	makeroot(y);
+	pp[y]=x;
+}
+void cut(int x,int y){
+	makeroot(x);
+	access(y);
+	p[x]=pp[x]=l[y]=0;
+}
+int get(int u,int v){
+	makeroot(u);
+	access(v);
+	return t[v];
+}
+void Split(int u,int v){
+	int o=get(u,v);
+	if(!val[o]) return;
+	cut(q[o].u,o);cut(o,q[o].v);
+	link(u,v);
+}
+int main(){
+	n=in,m=in,S=in,T=in;
+	forinc(i,1,m){
+		int it=in,u=in,v=in,c=in;
+		if(it==1) A.pb({u,v,c});
+		else B.pb({u,v,c});
 	}
-};
-
-struct LinkCut {
-	vector<Node> node;
-	LinkCut(int N) : node(N) {}
-
-	void link(int u, int v) { // add an edge (u, v)
-		assert(!connected(u, v));
-		makeRoot(&node[u]);
-		node[u].pp = &node[v];
+	sort(all(A),cmp);sort(all(B),cmp);
+	reset(id,-1);
+	forv(x,A){
+		int i=++n,u=x.u,v=x.v;
+		if(u==v) continue;
+		q[i]={x.u,x.v};
+		val[i]=x.c;
+		if(root(u)!=root(v)) link(u,i),link(i,v);
+		if(root(S)==root(T)) kq=min(kq,x.c);
 	}
-	void cut(int u, int v) { // remove an edge (u, v)
-		Node *x = &node[u], *top = &node[v];
-		makeRoot(top); x->splay();
-		assert(top == (x->pp ?: x->c[0]));
-		if (x->pp) x->pp = 0;
-		else {
-			x->c[0] = top->p = 0;
-			x->fix();
-		}
+	forv(x,B){
+		int u=x.u,v=x.v;
+		if(u==v) continue;
+		if(root(u)!=root(v)) link(u,v);
+		else Split(u,v);
+		if(root(S)==root(T)) kq=min(kq,x.c+val[get(S,T)]);
 	}
-	bool connected(int u, int v) { // are u, v in the same tree?
-		Node* nu = access(&node[u])->first();
-		return nu == access(&node[v])->first();
-	}
-	void makeRoot(Node* u) { /// Move u to root of represented tree.
-		access(u);
-		u->splay();
-		if(u->c[0]) {
-			u->c[0]->p = 0;
-			u->c[0]->flip ^= 1;
-			u->c[0]->pp = u;
-			u->c[0] = 0;
-			u->fix();
-		}
-	}
-	Node* access(Node* u) { /// Move u to root aux tree. Return the root of the root aux tree.
-		u->splay();
-		while (Node* pp = u->pp) {
-			pp->splay(); u->pp = 0;
-			if (pp->c[1]) {
-				pp->c[1]->p = 0; pp->c[1]->pp = pp; }
-			pp->c[1] = u; pp->fix(); u = pp;
-		}
-		return u;
-	}
-};
+	cout<<kq<<"\n";
+}
